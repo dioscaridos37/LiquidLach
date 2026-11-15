@@ -1,105 +1,80 @@
-name: Собрать LiquidLach APK
+имя: ошибка
 
-on:
+на:
   workflow_dispatch:
+  толкать:
+    ветви: [основной, мастер]
 
-  push:
-    branches:
-      - main
-      - master
+работа:
+  строить:
+    имя: Android APK
+    наезжает: убунту-22.04
 
-jobs:
-  build:
-    name: Android APK
-    runs-on: ubuntu-22.04
+    шаги:
+      - имя: Скачать исходный код
+        использует: действия/checkout@v4
 
-    steps:
-      - name: Скачать исходный код
-        uses: actions/checkout@v4
+      - имя: Устааановиь Java 17
+        использует: действия/setup-java@v4
+        с:
+          распределение: темурин
+          java-версия: '17'
 
-      - name: Установить Java 17
-        uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: '17'
+      - имя: Установить Флаттер
+        использует: субосито/flutter-action@v2
+        с:
+          флаттер-версия: '3.7.5'
+          канал: стабильный
+          кэш: истинный
 
-      - name: Установить Flutter
-        uses: subosito/flutter-action@v2
-        with:
-          flutter-version: '3.7.5'
-          channel: stable
-          cache: true
+      - имя: Найти Android SDK
+        оболочка: баш
+        бегать: |
+          SDK_ROOT="${ANDROID_SDK_ROOT:-$ANDROID_HOME}"
+          SDKMANAGER="$(find "$SDK_ROOT/cmdline-tools" -name sdkmanager -type f | head -n 1)"
+          эсли [ -z "$SDKMANAGER" ]; тогда
+            echo "sdkmanager не найден в $SDK_ROOT"
+            найти "$SDK_ROOT" -name sdkmanager -type f -print || true
+            выход 1
+          фи
+          echo "SDK_ROOT=$SDK_ROOT" >> "$GITHUB_ENV"
+          echo "SDKMANAGER=$SDKMANAGER" >> "$GITHUB_ENV"
+          echo "$(dirname "$SDKMANAGER")" >> "$GITHUB_PATH"
+          echo "$SDK_ROOT/platform-tools" >> "$GITHUB_PATH"
 
-      - name: Настроить Android SDK
-        uses: android-actions/setup-android@v3
+      - имя: Установить Android-платформу и инструменты сборки
+        оболочка: баш
+        бегать: |
+          да | "$SDKMANAGER" --лицензии || правда
+          "$SDKMANAGER" "планменные устройства" "планменные;android-33" "планменные устройства;33.0.2"
 
-      - name: Установить Android platform и build tools
-        shell: bash
-        run: |
-          sdkmanager "platform-tools"
-          sdkmanager "platforms;android-33"
-          sdkmanager "build-tools;33.0.2"
-
-          yes | sdkmanager --licenses || true
-
-      - name: Создать настройки Android
-        shell: bash
-        run: |
-          echo "Flutter: $FLUTTER_ROOT"
-          echo "Android SDK: $ANDROID_SDK_ROOT"
-
-          mkdir -p android
-
+      - имя: Создать нассстройки Android
+        оболочка: баш
+        бегать: |
           printf "flutter.sdk=%s\n" "$FLUTTER_ROOT" > android/local.properties
-          printf "sdk.dir=%s\n" "$ANDROID_SDK_ROOT" >> android/local.properties
+          printf "sdk.dir=%s\n" "$SDK_ROOT" >> android/local.properties
 
-          cat android/local.properties
+      - имя: Скачать Gradle 7.4
+        оболочка: баш
+        бегать: |
+          curl -fsSL https://services.gradle.org/distributions/gradle-7.4-bin.zip -o/tmp/gradle.zip
+          скачать -q/tmp/gradle.zip -d/tmp
 
-      - name: Скачать Gradle 7.4
-        shell: bash
-        run: |
-          curl -L \
-            https://services.gradle.org/distributions/gradle-7.4-bin.zip \
-            -o /tmp/gradle-7.4.zip
-
-          unzip -q /tmp/gradle-7.4.zip -d /tmp
-
-          /tmp/gradle-7.4/bin/gradle --version
-
-      - name: Создать Gradle Wrapper 7.4
-        shell: bash
-        run: |
-          /tmp/gradle-7.4/bin/gradle \
-            -p android \
-            wrapper \
-            --gradle-version 7.4
-
+      - имя: Подробнее Gradle Wrapper
+        оболочка: баш
+        бегать: |
+          /tmp/gradle-7.4/bin/gradle -p оболочка Android --gradle-version 7.4
           chmod +x android/gradlew
 
-          android/gradlew --version
+      - имя: Получить зависимости Флаттер
+        бегать: флаттер паб получить
 
-      - name: Получить зависимости Flutter
-        run: |
-          flutter pub get
+      - имя: Отправлять APK
+        бегать: флаттер сборка apk --отладка
 
-      - name: Проверить Flutter
-        run: |
-          flutter doctor -v
-
-      - name: Собрать APK
-        run: |
-          flutter build apk --debug
-
-      - name: Переименовать APK
-        shell: bash
-        run: |
-          cp \
-            build/app/outputs/flutter-apk/app-debug.apk \
-            build/app/outputs/flutter-apk/LiquidLach.apk
-
-      - name: Загрузить APK
-        uses: actions/upload-artifact@v4
-        with:
-          name: LiquidLach-APK
-          path: build/app/outputs/flutter-apk/LiquidLach.apk
-          if-no-files-found: error
+      - имя: Загрузить APK
+        использует: действия/upload-artifact@v4
+        с:
+          имя: LiquidLach-APK
+          путь: ссылка/app/outputs/flutter-apk/app-debug.apk
+          если-файлы-не-найдены: ошибка
