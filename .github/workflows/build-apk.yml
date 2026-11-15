@@ -1,0 +1,54 @@
+name: Собрать LiquidLach APK
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main, master ]
+
+jobs:
+  build:
+    name: Android APK
+    runs-on: ubuntu-22.04
+
+    steps:
+      - name: Скачать исходный код
+        uses: actions/checkout@v4
+
+      - name: Установить Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Установить Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.7.5'
+          channel: stable
+          cache: true
+
+      - name: Установить Android platform и build tools
+        run: |
+          echo "Android SDK: ${ANDROID_SDK_ROOT:-$ANDROID_HOME}"
+          sdkmanager "platform-tools" "platforms;android-33" "build-tools;33.0.2"
+          yes | sdkmanager --licenses >/dev/null || true
+
+      - name: Создать Gradle Wrapper
+        run: |
+          printf "flutter.sdk=%s\nsdk.dir=%s\n" "$FLUTTER_ROOT" "$ANDROID_SDK_ROOT" > android/local.properties
+          curl -fsSL https://services.gradle.org/distributions/gradle-7.4-bin.zip -o /tmp/gradle.zip
+          unzip -q /tmp/gradle.zip -d /tmp
+          /tmp/gradle-7.4/bin/gradle -p android wrapper --gradle-version 7.4
+
+      - name: Получить зависимости Flutter
+        run: flutter pub get
+
+      - name: Собрать APK
+        run: flutter build apk --debug
+
+      - name: Опубликовать APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: LiquidLach-debug-apk
+          path: build/app/outputs/flutter-apk/app-debug.apk
+          if-no-files-found: error
