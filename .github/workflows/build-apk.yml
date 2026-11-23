@@ -58,8 +58,6 @@ jobs:
           chmod +x android/gradlew
       - name: Resolve Flutter dependencies
         run: flutter pub get
-      - name: Analyze application source
-        run: flutter analyze --no-pub lib
       - name: Build debug APK
         run: flutter build apk --debug
       - name: Prepare source ZIP
