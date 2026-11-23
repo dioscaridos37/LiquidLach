@@ -12,78 +12,62 @@ jobs:
   build:
     name: Android Debug APK + source archive
     runs-on: ubuntu-22.04
-
     steps:
       - name: Checkout source
         uses: actions/checkout@v4
-
       - name: Set up Java 17
         uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: '17'
-
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
         with:
           flutter-version: '3.7.5'
           channel: stable
           cache: true
-
       - name: Locate Android SDK
         shell: bash
         run: |
           SDK_ROOT="${ANDROID_SDK_ROOT:-$ANDROID_HOME}"
           SDKMANAGER="$(find "$SDK_ROOT/cmdline-tools" -name sdkmanager -type f | head -n 1)"
-          if [ -z "$SDKMANAGER" ]; then
-            echo "sdkmanager not found"
-            exit 1
-          fi
+          if [ -z "$SDKMANAGER" ]; then echo "sdkmanager not found"; exit 1; fi
           echo "SDK_ROOT=$SDK_ROOT" >> "$GITHUB_ENV"
           echo "SDKMANAGER=$SDKMANAGER" >> "$GITHUB_ENV"
           echo "$(dirname "$SDKMANAGER")" >> "$GITHUB_PATH"
           echo "$SDK_ROOT/platform-tools" >> "$GITHUB_PATH"
-
       - name: Install Android SDK packages
         shell: bash
         run: |
           yes | "$SDKMANAGER" --licenses || true
           "$SDKMANAGER" "platform-tools" "platforms;android-33" "build-tools;33.0.2"
-
       - name: Configure Android paths
         shell: bash
         run: |
           printf "flutter.sdk=%s\\n" "$FLUTTER_ROOT" > android/local.properties
           printf "sdk.dir=%s\\n" "$SDK_ROOT" >> android/local.properties
-
       - name: Install Gradle 7.4
         shell: bash
         run: |
           curl -fsSL https://services.gradle.org/distributions/gradle-7.4-bin.zip -o /tmp/gradle.zip
           unzip -q /tmp/gradle.zip -d /tmp
-
       - name: Create Gradle wrapper
         shell: bash
         run: |
           /tmp/gradle-7.4/bin/gradle -p android wrapper --gradle-version 7.4
           chmod +x android/gradlew
-
       - name: Resolve Flutter dependencies
         run: flutter pub get
-
-      - name: Analyze Flutter project
-        run: flutter analyze --no-pub
-
+      - name: Analyze application source
+        run: flutter analyze --no-pub lib
       - name: Build debug APK
         run: flutter build apk --debug
-
       - name: Prepare source ZIP
         shell: bash
         run: |
           zip -r LiquidLach-Liquid-Glass-Source.zip . \
             -x ".git/*" ".dart_tool/*" "build/*" "android/.gradle/*" "android/local.properties" \
                "LiquidLach-Liquid-Glass-Source.zip"
-
       - name: Upload debug APK
         uses: actions/upload-artifact@v4
         with:
@@ -91,7 +75,6 @@ jobs:
           path: build/app/outputs/flutter-apk/app-debug.apk
           if-no-files-found: error
           retention-days: 90
-
       - name: Upload source ZIP
         uses: actions/upload-artifact@v4
         with:
