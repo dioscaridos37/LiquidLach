@@ -1,19 +1,7 @@
-﻿/*
+/*
  * FLauncher
- * Copyright (C) 2021  Г‰tienne Fesser
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ * Copyright (C) 2021 Étienne Fesser
+ * Licensed under the GNU General Public License v3.0 or later.
  */
 
 import 'dart:async';
@@ -57,27 +45,18 @@ class _AppCardState extends State<AppCard> with SingleTickerProviderStateMixin {
   MemoryImage? _imageProvider;
   late final AnimationController _animation = AnimationController(
     vsync: Provider.of<TickerModel>(context, listen: false).tickerProvider ?? this,
-    duration: Duration(
-      milliseconds: 800,
-    ),
+    duration: Duration(milliseconds: 1100),
   );
   Color _lastBorderColor = Colors.white;
 
   @override
   void initState() {
     super.initState();
-    _animation.addStatusListener((animationStatus) {
-      switch (animationStatus) {
-        case AnimationStatus.completed:
-          _animation.reverse();
-          break;
-        case AnimationStatus.dismissed:
-          _animation.forward();
-          break;
-        case AnimationStatus.forward:
-        case AnimationStatus.reverse:
-          // nothing to do
-          break;
+    _animation.addStatusListener((status) {
+      if (status == AnimationStatus.completed) {
+        _animation.reverse();
+      } else if (status == AnimationStatus.dismissed) {
+        _animation.forward();
       }
     });
   }
@@ -99,108 +78,121 @@ class _AppCardState extends State<AppCard> with SingleTickerProviderStateMixin {
   Widget build(BuildContext context) => FocusKeyboardListener(
         onPressed: (key) => _onPressed(context, key),
         onLongPress: (key) => _onLongPress(context, key),
-        builder: (context) => AspectRatio(
-          aspectRatio: 16 / 9,
-          child: AnimatedContainer(
-            duration: Duration(milliseconds: 200),
-            curve: Curves.easeInOut,
-            transformAlignment: Alignment.center,
-            transform: _scaleTransform(context),
-            child: Material(
-              color: Colors.white.withOpacity(Focus.of(context).hasFocus ? .22 : .12),
-              borderRadius: BorderRadius.circular(24),
-              elevation: Focus.of(context).hasFocus ? 14 : 2,
-              clipBehavior: Clip.antiAlias,
-              shadowColor: Colors.black87,
-              child: Stack(
-                fit: StackFit.expand,
-                children: [
-                  InkWell(
-                    autofocus: widget.autofocus,
-                    focusColor: Colors.transparent,
-                    onTap: () => _onPressed(context, null),
-                    onLongPress: () => _onLongPress(context, null),
-                    child: widget.application.banner != null
-                        ? Ink.image(image: _cachedMemoryImage(widget.application.banner!), fit: BoxFit.cover)
-                        : Padding(
-                            padding: EdgeInsets.all(8),
-                            child: Row(
-                              children: [
-                                Expanded(
-                                  flex: 2,
-                                  child: Ink.image(
-                                    image: _cachedMemoryImage(widget.application.icon!),
-                                    height: double.infinity,
-                                  ),
-                                ),
-                                Flexible(
-                                  flex: 3,
-                                  child: Padding(
-                                    padding: EdgeInsets.only(left: 8),
-                                    child: Text(
-                                      widget.application.name,
-                                      style: Theme.of(context).textTheme.bodySmall,
-                                      overflow: TextOverflow.ellipsis,
-                                      maxLines: 3,
+        builder: (context) {
+          final focused = Focus.of(context).hasFocus;
+          return AspectRatio(
+            aspectRatio: 16 / 9,
+            child: AnimatedContainer(
+              duration: Duration(milliseconds: 360),
+              curve: Curves.easeOutBack,
+              transformAlignment: Alignment.center,
+              transform: Matrix4.diagonal3Values(focused && !_moving ? 1.075 : 1.0, focused && !_moving ? 1.075 : 1.0, 1.0),
+              child: Material(
+                color: Colors.white.withOpacity(focused ? .19 : .085),
+                borderRadius: BorderRadius.circular(23),
+                elevation: focused ? 22 : 4,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(23),
+                  side: BorderSide(
+                    color: focused ? Color(0xffa4e6ff).withOpacity(.95) : Colors.white.withOpacity(.17),
+                    width: focused ? 2.2 : 1,
+                  ),
+                ),
+                clipBehavior: Clip.antiAlias,
+                shadowColor: Color(0xff4bbfff).withOpacity(.32),
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    InkWell(
+                      autofocus: widget.autofocus,
+                      focusColor: Colors.transparent,
+                      onTap: () => _onPressed(context, null),
+                      onLongPress: () => _onLongPress(context, null),
+                      child: widget.application.banner != null
+                          ? Ink.image(image: _cachedMemoryImage(widget.application.banner!), fit: BoxFit.cover)
+                          : Padding(
+                              padding: EdgeInsets.all(9),
+                              child: Row(
+                                children: [
+                                  Expanded(
+                                    flex: 2,
+                                    child: Ink.image(
+                                      image: _cachedMemoryImage(widget.application.icon!),
+                                      height: double.infinity,
                                     ),
                                   ),
-                                ),
-                              ],
-                            ),
-                          ),
-                  ),
-                  if (_moving) ..._arrows(),
-                  IgnorePointer(
-                    child: AnimatedOpacity(
-                      duration: Duration(milliseconds: 200),
-                      curve: Curves.easeInOut,
-                      opacity: Focus.of(context).hasFocus ? 0 : 0.10,
-                      child: Container(color: Colors.black),
-                    ),
-                  ),
-                  Selector<SettingsService, bool>(
-                    selector: (_, settingsService) => settingsService.appHighlightAnimationEnabled,
-                    builder: (context, appHighlightAnimationEnabled, __) {
-                      if (appHighlightAnimationEnabled) {
-                        _animation.forward();
-                        return AnimatedBuilder(
-                          animation: _animation,
-                          builder: (context, child) => IgnorePointer(
-                            child: AnimatedContainer(
-                              duration: Duration(milliseconds: 200),
-                              curve: Curves.easeInOut,
-                              decoration: BoxDecoration(
-                                border: Focus.of(context).hasFocus
-                                    ? Border.all(
-                                        color: _lastBorderColor =
-                                            computeBorderColor(_animation.value, _lastBorderColor),
-                                        width: 3)
-                                    : null,
-                                 borderRadius: BorderRadius.circular(24),
+                                  Flexible(
+                                    flex: 3,
+                                    child: Padding(
+                                      padding: EdgeInsets.only(left: 9),
+                                      child: Text(
+                                        widget.application.name,
+                                        style: Theme.of(context).textTheme.bodySmall,
+                                        overflow: TextOverflow.ellipsis,
+                                        maxLines: 3,
+                                      ),
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
+                    ),
+                    if (_moving) ..._arrows(),
+                    IgnorePointer(
+                      child: AnimatedOpacity(
+                        duration: Duration(milliseconds: 260),
+                        curve: Curves.easeOutCubic,
+                        opacity: focused ? 0 : .16,
+                        child: Container(color: Colors.black),
+                      ),
+                    ),
+                    if (focused)
+                      IgnorePointer(
+                        child: DecoratedBox(
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                              colors: [Colors.white.withOpacity(.16), Colors.transparent, Color(0xff60cfff).withOpacity(.08)],
+                            ),
                           ),
-                        );
-                      }
-                      _animation.stop();
-                      return SizedBox();
-                    },
-                  ),
-                ],
+                        ),
+                      ),
+                    Selector<SettingsService, bool>(
+                      selector: (_, settingsService) => settingsService.appHighlightAnimationEnabled,
+                      builder: (context, enabled, __) {
+                        if (enabled) {
+                          _animation.forward();
+                          return AnimatedBuilder(
+                            animation: _animation,
+                            builder: (context, child) => IgnorePointer(
+                              child: AnimatedContainer(
+                                duration: Duration(milliseconds: 180),
+                                curve: Curves.easeOutCubic,
+                                decoration: BoxDecoration(
+                                  border: focused
+                                      ? Border.all(
+                                          color: _lastBorderColor = computeBorderColor(_animation.value, _lastBorderColor),
+                                          width: 2.4,
+                                        )
+                                      : null,
+                                  borderRadius: BorderRadius.circular(23),
+                                ),
+                              ),
+                            ),
+                          );
+                        }
+                        _animation.stop();
+                        return SizedBox();
+                      },
+                    ),
+                  ],
+                ),
               ),
             ),
-          ),
-        ),
+          );
+        },
       );
-
-  Matrix4 _scaleTransform(BuildContext context) {
-    final scale = _moving
-        ? 1.0
-        : Focus.of(context).hasFocus
-            ? 1.1
-            : 1.0;
-    return Matrix4.diagonal3Values(scale, scale, 1.0);
-  }
 
   List<Widget> _arrows() => [
         _arrow(Alignment.centerLeft, Icons.keyboard_arrow_left),
@@ -216,20 +208,21 @@ class _AppCardState extends State<AppCard> with SingleTickerProviderStateMixin {
           child: Container(
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              color: Theme.of(context).primaryColor.withOpacity(0.8),
+              color: Theme.of(context).primaryColor.withOpacity(.85),
             ),
-            child: Icon(
-              icon,
-              size: 16,
-            ),
+            child: Icon(icon, size: 16),
           ),
         ),
       );
 
   KeyEventResult _onPressed(BuildContext context, LogicalKeyboardKey? key) {
     if (_moving) {
-      WidgetsBinding.instance.addPostFrameCallback((_) => Scrollable.ensureVisible(context,
-          alignment: 0.1, duration: Duration(milliseconds: 100), curve: Curves.easeInOut));
+      WidgetsBinding.instance.addPostFrameCallback((_) => Scrollable.ensureVisible(
+            context,
+            alignment: .1,
+            duration: Duration(milliseconds: 180),
+            curve: Curves.easeOutCubic,
+          ));
       if (key == LogicalKeyboardKey.arrowLeft) {
         widget.onMove(AxisDirection.left);
       } else if (key == LogicalKeyboardKey.arrowUp) {
@@ -259,16 +252,29 @@ class _AppCardState extends State<AppCard> with SingleTickerProviderStateMixin {
   }
 
   Future<void> _showPanel(BuildContext context) async {
-    final result = await showDialog<ApplicationInfoPanelResult>(
+    final result = await showGeneralDialog<ApplicationInfoPanelResult>(
       context: context,
-      builder: (context) => ApplicationInfoPanel(
+      barrierDismissible: true,
+      barrierLabel: MaterialLocalizations.of(context).modalBarrierDismissLabel,
+      barrierColor: Colors.black.withOpacity(.42),
+      transitionDuration: Duration(milliseconds: 360),
+      pageBuilder: (_, __, ___) => ApplicationInfoPanel(
         category: widget.category,
         application: widget.application,
       ),
+      transitionBuilder: (_, animation, __, child) {
+        final curved = CurvedAnimation(parent: animation, curve: Curves.easeOutCubic);
+        return FadeTransition(
+          opacity: curved,
+          child: SlideTransition(
+            position: Tween<Offset>(begin: Offset(1, 0), end: Offset.zero).animate(curved),
+            child: child,
+          ),
+        );
+      },
     );
     if (result == ApplicationInfoPanelResult.reorderApp) {
       setState(() => _moving = true);
     }
   }
 }
-
