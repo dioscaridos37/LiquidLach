@@ -1,90 +1,92 @@
-name: Собрать LiquidLach APK
+name: Build LiquidLach Release APK
 
 on:
   workflow_dispatch:
   push:
     branches: [main, master]
 
+permissions:
+  contents: write
+
 jobs:
   build:
-    name: Android APK
+    name: Android Release APK
     runs-on: ubuntu-22.04
 
     steps:
-      - name: Скачать исходный код
+      - name: Checkout source
         uses: actions/checkout@v4
 
-      - name: Установить Java 17
+      - name: Set up Java 17
         uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: '17'
 
-      - name: Установить Flutter
+      - name: Set up Flutter
         uses: subosito/flutter-action@v2
         with:
           flutter-version: '3.7.5'
           channel: stable
           cache: true
 
-      - name: Найти Android SDK
+      - name: Locate Android SDK
         shell: bash
         run: |
           SDK_ROOT="${ANDROID_SDK_ROOT:-$ANDROID_HOME}"
           SDKMANAGER="$(find "$SDK_ROOT/cmdline-tools" -name sdkmanager -type f | head -n 1)"
-
           if [ -z "$SDKMANAGER" ]; then
-            echo "sdkmanager не найден"
-            find "$SDK_ROOT" -name sdkmanager -type f -print || true
+            echo "sdkmanager not found"
             exit 1
           fi
-
           echo "SDK_ROOT=$SDK_ROOT" >> "$GITHUB_ENV"
           echo "SDKMANAGER=$SDKMANAGER" >> "$GITHUB_ENV"
           echo "$(dirname "$SDKMANAGER")" >> "$GITHUB_PATH"
           echo "$SDK_ROOT/platform-tools" >> "$GITHUB_PATH"
 
-      - name: Установить Android platform и build tools
+      - name: Install Android SDK packages
         shell: bash
         run: |
           yes | "$SDKMANAGER" --licenses || true
-          "$SDKMANAGER" \
-            "platform-tools" \
-            "platforms;android-33" \
-            "build-tools;33.0.2"
+          "$SDKMANAGER" "platform-tools" "platforms;android-33" "build-tools;33.0.2"
 
-      - name: Создать настройки Android
+      - name: Configure Android paths
         shell: bash
         run: |
-          printf "flutter.sdk=%s\n" "$FLUTTER_ROOT" > android/local.properties
-          printf "sdk.dir=%s\n" "$SDK_ROOT" >> android/local.properties
+          printf "flutter.sdk=%s\\n" "$FLUTTER_ROOT" > android/local.properties
+          printf "sdk.dir=%s\\n" "$SDK_ROOT" >> android/local.properties
 
-      - name: Скачать Gradle 7.4
+      - name: Install Gradle 7.4
         shell: bash
         run: |
-          curl -fsSL \
-            https://services.gradle.org/distributions/gradle-7.4-bin.zip \
-            -o /tmp/gradle.zip
+          curl -fsSL https://services.gradle.org/distributions/gradle-7.4-bin.zip -o /tmp/gradle.zip
           unzip -q /tmp/gradle.zip -d /tmp
 
-      - name: Создать Gradle Wrapper
+      - name: Create Gradle wrapper
         shell: bash
         run: |
-          /tmp/gradle-7.4/bin/gradle \
-            -p android \
-            wrapper \
-            --gradle-version 7.4
+          /tmp/gradle-7.4/bin/gradle -p android wrapper --gradle-version 7.4
           chmod +x android/gradlew
 
-      - name: Получить зависимости Flutter
+      - name: Resolve Flutter dependencies
         run: flutter pub get
 
-      - name: Собрать APK
-        run: flutter build apk --debug
+      - name: Build release APK
+        run: flutter build apk --release
 
-      - name: Загрузить APK
+      - name: Upload release artifact
         uses: actions/upload-artifact@v4
         with:
-          name: LiquidLach-APK
-          path: build/app/outputs/flutter-apk/app-debug.apk
+          name: LiquidLach-Release-APK
+          path: build/app/outputs/flutter-apk/app-release.apk
           if-no-files-found: error
+          retention-days: 90
+
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: liquid-v1.0.${{ github.run_number }}
+          name: LiquidLach v1.0.${{ github.run_number }}
+          target_commitish: ${{ github.sha }}
+          generate_release_notes: true
+          files: build/app/outputs/flutter-apk/app-release.apk
