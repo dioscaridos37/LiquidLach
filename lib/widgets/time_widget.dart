@@ -1,22 +1,11 @@
-﻿/*
+/*
  * FLauncher
- * Copyright (C) 2021  Г‰tienne Fesser
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ * Copyright (C) 2021 Étienne Fesser
+ * Licensed under the GNU General Public License v3.0 or later.
  */
 
 import 'dart:async';
+import 'dart:ui';
 
 import 'package:flauncher/providers/settings_service.dart';
 import 'package:flutter/material.dart';
@@ -47,20 +36,49 @@ class _TimeWidgetState extends State<TimeWidget> {
 
   @override
   Widget build(BuildContext context) => Selector<SettingsService, bool>(
-        selector: (_, settingsService) => settingsService.use24HourTimeFormat,
-        builder: (context, use24HourTimeFormat, _) => Text(
-          use24HourTimeFormat ? DateFormat.Hm().format(_now) : DateFormat.jm().format(_now),
-          style: Theme.of(context).textTheme.titleLarge!.copyWith(
-            shadows: [Shadow(color: Colors.black54, offset: Offset(1, 1), blurRadius: 8)],
+        selector: (_, settings) => settings.use24HourTimeFormat,
+        builder: (context, use24HourTimeFormat, _) => ClipRRect(
+          borderRadius: BorderRadius.circular(23),
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 24, sigmaY: 24),
+            child: Container(
+              constraints: BoxConstraints(minWidth: 180),
+              padding: EdgeInsets.symmetric(horizontal: 25, vertical: 9),
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(.105),
+                borderRadius: BorderRadius.circular(23),
+                border: Border.all(color: Colors.white.withOpacity(.22)),
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [Colors.white.withOpacity(.16), Colors.white.withOpacity(.045)],
+                ),
+                boxShadow: [
+                  BoxShadow(color: Colors.black.withOpacity(.16), blurRadius: 24, offset: Offset(0, 9)),
+                ],
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    use24HourTimeFormat ? DateFormat.Hm().format(_now) : DateFormat.jm().format(_now),
+                    style: TextStyle(fontSize: 29, height: 1.05, fontWeight: FontWeight.w300, letterSpacing: 1.4),
+                  ),
+                  SizedBox(height: 4),
+                  Text(
+                    DateFormat.yMMMMd().format(_now),
+                    style: TextStyle(fontSize: 10, color: Colors.white70, letterSpacing: 1.1),
+                  ),
+                ],
+              ),
+            ),
           ),
-          textAlign: TextAlign.end,
         ),
       );
 
   void _refreshTime() {
-    setState(() {
-      _now = DateTime.now();
-    });
+    if (mounted) {
+      setState(() => _now = DateTime.now());
+    }
   }
 }
-
