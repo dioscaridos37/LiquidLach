@@ -1,4 +1,4 @@
-name: Build LiquidLach Debug APK
+name: Build LiquidLach Debug APK and Source ZIP
 
 on:
   push:
@@ -10,7 +10,7 @@ permissions:
 
 jobs:
   build:
-    name: Android Debug APK
+    name: Android Debug APK + source archive
     runs-on: ubuntu-22.04
 
     steps:
@@ -71,13 +71,31 @@ jobs:
       - name: Resolve Flutter dependencies
         run: flutter pub get
 
+      - name: Analyze Flutter project
+        run: flutter analyze --no-pub
+
       - name: Build debug APK
         run: flutter build apk --debug
+
+      - name: Prepare source ZIP
+        shell: bash
+        run: |
+          zip -r LiquidLach-Liquid-Glass-Source.zip . \
+            -x ".git/*" ".dart_tool/*" "build/*" "android/.gradle/*" "android/local.properties" \
+               "LiquidLach-Liquid-Glass-Source.zip"
 
       - name: Upload debug APK
         uses: actions/upload-artifact@v4
         with:
           name: LiquidLach-Debug-APK
           path: build/app/outputs/flutter-apk/app-debug.apk
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Upload source ZIP
+        uses: actions/upload-artifact@v4
+        with:
+          name: LiquidLach-Liquid-Glass-Source
+          path: LiquidLach-Liquid-Glass-Source.zip
           if-no-files-found: error
           retention-days: 90
